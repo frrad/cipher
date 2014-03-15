@@ -3,7 +3,8 @@ import re, random
 letOrder = ['e', 't', 'a', 'o', 'i', 'n', 's', 'h', 'r', 'd', 'l', 'c', 'u', 'm', 'w', 'f', 'g', 'y', 'p', 'b', 'v', 'k', 'j', 'x', 'q', 'z']
 wordPath = '/usr/share/dict/american-english'
 WLMIN = 1
-WLMAX = 8
+WLMAX = 10
+tries = 15
 
 
 ######################
@@ -70,6 +71,7 @@ def flesh(rule):
     for let in add:
         rule[let] = end.pop()
 
+#fleshes out to complete rule while changing as little as possible
 def flush(rule):
     start = set('abcdefghijklmnopqrstuvwxyz')
     end = set('abcdefghijklmnopqrstuvwxyz')
@@ -85,6 +87,18 @@ def flush(rule):
             end.discard(let)
         else:
             rule[let] = end.pop()
+
+def randSub():
+    subs = dict()
+    grouse = list('abcdefghijklmnopqrstuvwxyz')
+    for x in xrange(25,-1 ,-1):
+        to = random.randint(0,x)
+        subs[numLet(x+1)] = grouse[to]
+        grouse[to], grouse[x] = grouse[x], grouse[to]
+
+    return subs
+
+
 
 #if we know that a means b... 
 def knownText(a,b):
@@ -131,19 +145,22 @@ def bruteCheck(cleartext, a,b):
 #slightly better: don't allow overlap
 def bCheck2(cleartext, a,b):
     salmon = [0 for x in range(len(cleartext))]
+    total = 0
+
     for x in range(b,a-1, -1):
+        # print x
         for start in range(len(cleartext) - x +1):
             substr = cleartext[start:start + x]
             # print "<<"+substr
             if substr in wordlist:
                 # print substr
+                total += x*x
                 for z in range(x):
                     salmon[z + start] += 1
                     cleartext = help(cleartext,z + start)
-    total = 0
-    for score in salmon:
-        if score > 0:
-            total +=1
+    # for score in salmon:
+    #     if score > 0:
+    #         total +=1
     return total
 
 ####################
@@ -180,7 +197,7 @@ def breed(sub1, sub2, n):
 
 def epoch(pool, time):
     for x in xrange(time):
-        print x
+        # print x
         pile = []
         for i, rule in enumerate(pool):
             for x in xrange(i):
@@ -207,51 +224,50 @@ def help(word, pos):
     tasty[pos] = ' '
     return "".join(tasty)
 
+
+
+#####################################
+
 ciphertext = 'DGFMVXCRLCWMIDHDRLCHHDHVKLCAKYMAIHCAHEFIHZDRLHMUDRLFMVZSLIHLGGMZHLRLAHVCEEFFMVODEEMRLZYMQLFMVZDQQLKDCHLWZMSELQICAKGDAKFMVCZLZLCKFGMZUZLCHLZYXCEELAULI'
-# ciphertext = ciphertext.lower()
-# listinit(3,WLMAX)
+ciphertext = ciphertext.lower()
+listinit(WLMIN,WLMAX)
 
 
-# frequency = freqTable(ciphertext)
+frequency = freqTable(ciphertext)
 
-# metapool = []
+metapool = []
 
-# for x in xrange(1,10):
+for epochN in xrange(1,tries):
     
-#     #seed the pool
-#     pool = []
+    #seed the pool
+    pool = []
 
-#     manual = knownText('dgfmvxcrlcwmidhdrlchhdhvklz','ifyouhaveapositiveattituder')
-#     flesh(manual)
-#     pool.append(manual)
+    for x in xrange(3):
+        dumb = naiveRule(tableOrder(frequency))
+        flesh(dumb)
+        pool.append(dumb)
 
-#     for x in xrange(3):
-#         dumb = naiveRule(tableOrder(frequency))
-#         flesh(dumb)
-#         pool.append(dumb)
+    for x in xrange(26):
+        pool.append(randSub())
 
-#     for x in xrange(26):
-#         pool.append(caesar(x))
-
-#     pool = epoch(pool, 20)
-
-#     metapool.extend(pool[:5])
+    pool = epoch(pool, 20)
 
 
-# metapool = epoch(metapool,20)
-
-# for rule in metapool:
-#     celar = substitute(ciphertext,rule)
-#     print celar + " " +str(bruteCheck(celar, WLMIN, WLMAX))
-
-# print len(ciphertext)
+    top = pool[0]
+    topClear = substitute(ciphertext,top)
+    print str(epochN) + "\t" + topClear +" "+ str(bCheck2(topClear,WLMIN,WLMAX))
 
 
-manual = knownText('DGFMVXCRLCWMIDHDRLCHHDHVKLzaeysquo'.lower(),'ifyouhaveapositiveattitudernlcbmgw')
-flush(manual)
+    metapool.extend(pool[:5])
 
-print ciphertext
-print substitute(ciphertext.lower(), manual)
 
-for x in xrange(1,27):
-    print letNum(manual[numLet(x)])
+metapool = epoch(metapool,20)
+
+for epochN in xrange(1,tries):
+    celar = substitute(ciphertext,metapool[epochN])
+    print celar + " " +str(bCheck2(celar, WLMIN, WLMAX))
+
+print len(ciphertext)
+
+
+ 
